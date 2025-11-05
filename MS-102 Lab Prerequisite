@@ -1,0 +1,44 @@
+::Run this in a PowerShell session with the Microsoft Graph SDK installed 
+Install-Module Microsoft.Graph -Scope CurrentUser
+
+
+# Connect to Microsoft Graph with required scopes
+Connect-MgGraph -Scopes "Group.ReadWrite.All User.Read.All Directory.ReadWrite.All"
+
+# Define group properties
+$groupDisplayName = "M365 pilot project"
+$groupDescription = "Members of the Microsoft 365 pilot project team"
+$groupMailNickname = "m365pilotproject"
+
+# Create the Microsoft 365 group
+$group = New-MgGroup -DisplayName $groupDisplayName `
+  -Description $groupDescription `
+  -MailEnabled $true `
+  -MailNickname $groupMailNickname `
+  -SecurityEnabled $false `
+  -GroupTypes @("Unified") `
+  -Visibility "Private"
+
+Write-Host "Group created with ID: $($group.Id)"
+
+# Lookup users by display name or UPN
+$modAdmin = Get-MgUser -Filter "startswith(userPrincipalName,'admin@')" | Select-Object -First 1
+$joni = Get-MgUser -Filter "displayName eq 'Joni Sherman'" | Select-Object -First 1
+$lynne = Get-MgUser -Filter "displayName eq 'Lynne Robbins'" | Select-Object -First 1
+
+# Add MOD Administrator as owner
+Add-MgGroupOwnerByRef -GroupId $group.Id -DirectoryObjectId $modAdmin.Id
+
+# Add members to the group
+$members = @($modAdmin, $joni, $lynne)
+foreach ($member in $members) {
+    Add-MgGroupMemberByRef -GroupId $group.Id -DirectoryObjectId $member.Id
+}
+
+Write-Host "Owner and members added."
+
+# Create a Team for the group
+New-MgTeam -GroupId $group.Id
+
+Write-Host "Team provisioned for the group."
+
